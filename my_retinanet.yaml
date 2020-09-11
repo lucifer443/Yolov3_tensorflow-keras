@@ -1,0 +1,9 @@
+# my_retinanet.yaml
+type: 'retinanet'
+train:
+  batch_size: 4
+  train_file_pattern: '/algo_proj/changming/model-zoo/tfrecords/coco_train.record-?????-of-00100'
+eval:
+  eval_file_pattern: '/algo_proj/changming/model-zoo/tfrecords/coco_val.record-?????-of-00010'
+  val_json_file: '/algo_public/datasets/COCO17/annotations/instances_val2017.json'
+use_tpu: False

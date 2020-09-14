@@ -28,17 +28,12 @@ import pprint
 import tensorflow as tf
 
 from tensorflow.python.keras.optimizers import Adam, SGD
-from official.modeling.hyperparams import params_dict
-from official.modeling.training import distributed_executor as executor
-from official.utils import hyperparams_flags
-from official.vision.image_classification import optimizer_factory
+from modeling.hyperparams import params_dict
+from utils import hyperparams_flags
 from configs import factory as config_factory
 from dataloader import input_reader
 from dataloader import mode_keys as ModeKeys
-from executor.detection_executor import DetectionDistributedExecutor
 from modeling import factory as model_factory
-from official.utils.misc import distribution_utils
-from official.utils.misc import keras_utils
 
 hyperparams_flags.initialize_common_flags()
 
@@ -89,68 +84,6 @@ def build_model_fn(features, labels, mode, params):
                               loss=total_loss,
                               train_op=train_op)
 
-def input_pipeline():
-    def input_fn():
-        image = tf.ones(shape=[4, 640, 640, 3], dtype=tf.float32)
-        return image, {'shape': image}
-    return input_fn
-
-
-def run_executor(params,
-                 train_input_fn=None,
-                 eval_input_fn=None,
-                 callbacks=None,
-                 strategy=None):
-  """Runs Retinanet model on distribution strategy defined by the user."""
-
-  if params.architecture.use_bfloat16:
-    policy = tf.compat.v2.keras.mixed_precision.experimental.Policy(
-        'mixed_bfloat16')
-    tf.compat.v2.keras.mixed_precision.experimental.set_policy(policy)
-
-  model_builder = model_factory.model_generator(params)
-
-  if strategy is None:
-    strategy_config = params.strategy_config
-    distribution_utils.configure_cluster(strategy_config.worker_hosts,
-                                         strategy_config.task_index)
-    strategy = distribution_utils.get_distribution_strategy(
-        distribution_strategy=params.strategy_type,
-        num_gpus=strategy_config.num_gpus,
-        all_reduce_alg=strategy_config.all_reduce_alg,
-        num_packs=strategy_config.num_packs,
-        tpu_address=strategy_config.tpu)
-    strategy_scope = distribution_utils.get_strategy_scope(strategy)
-
-  num_workers = int(strategy.num_replicas_in_sync + 7) // 8
-  is_multi_host = (int(num_workers) >= 2)
-
-  if FLAGS.mode == 'train':
-
-
-    train_dataset = train_input_fn()
-    logging.info(
-        'Train num_replicas_in_sync %d num_workers %d is_multi_host %s',
-        strategy.num_replicas_in_sync, num_workers, is_multi_host)
-
-    with strategy_scope:
-      model = model_builder.build_model(params.as_dict(), mode=ModeKeys.TRAIN)
-      #learning_rate = optimizer_factory.build_learning_rate(
-      #                params=params.model.learning_rate,
-      #                batch_size=64,
-      #                train_steps=1000)
-      #optimizer = optimizer_factory.build_optimizer(
-      #        optimizer_name="momentum",
-      #        base_learning_rate=0.01)
-      #        #params=params.model.optimizer.as_dict())
-      model.compile(optimizer=Adam(lr=1e-3), 
-                    loss=model_builder.build_loss_fn(),)
-      model.fit(train_dataset,
-                epochs=10,
-                steps_per_epoch=1000,
-                initial_epoch=0)
-  else:
-    raise ValueError('Mode not found: %s.' % FLAGS.mode)
 
 def estimator_run(params, train_input_fn):
     ssd_detector = tf.estimator.Estimator(
@@ -162,7 +95,7 @@ def estimator_run(params, train_input_fn):
 
 
 def run(callbacks=None):
-  keras_utils.set_session_config(enable_xla=FLAGS.enable_xla)
+  # keras_utils.set_session_config(enable_xla=FLAGS.enable_xla)
 
   params = config_factory.config_generator(FLAGS.model)
 
@@ -175,7 +108,6 @@ def run(callbacks=None):
       {
           'strategy_type': FLAGS.strategy_type,
           'model_dir': FLAGS.model_dir,
-          'strategy_config': executor.strategy_flags_dict(),
       },
       is_strict=False)
   params.validate()

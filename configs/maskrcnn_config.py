@@ -14,7 +14,7 @@
 # ==============================================================================
 """Config template to train Mask R-CNN."""
 
-from official.modeling.hyperparams import params_dict
+from modeling.hyperparams import params_dict
 from configs import base_config
 
 

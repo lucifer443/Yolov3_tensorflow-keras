@@ -16,7 +16,7 @@
 
 from configs import maskrcnn_config
 from configs import retinanet_config
-from official.modeling.hyperparams import params_dict
+from modeling.hyperparams import params_dict
 
 
 def config_generator(model):

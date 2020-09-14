@@ -22,7 +22,7 @@ import functools
 
 import numpy as np
 import tensorflow as tf
-from official.modeling.hyperparams import params_dict
+from modeling.hyperparams import params_dict
 
 
 class StepLearningRateWithLinearWarmup(tf.keras.optimizers.schedules.LearningRateSchedule):

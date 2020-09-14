@@ -21,14 +21,14 @@ T.-Y. Lin, P. Goyal, R. Girshick, K. He,  and P. Dollar
 Focal Loss for Dense Object Detection. arXiv:1708.02002
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
-from official.vision.detection.dataloader import anchor
-from official.vision.detection.dataloader import mode_keys as ModeKeys
-from official.vision.detection.dataloader import tf_example_decoder
-from official.vision.detection.utils import autoaugment_utils
-from official.vision.detection.utils import box_utils
-from official.vision.detection.utils import input_utils
+from dataloader import anchor
+from dataloader import mode_keys as ModeKeys
+from dataloader import tf_example_decoder
+from utils import autoaugment_utils
+from utils import box_utils
+from utils import input_utils
 
 
 def process_source_id(source_id):

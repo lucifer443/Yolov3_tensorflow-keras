@@ -408,9 +408,9 @@ class RetinanetClassLoss(object):
     """Computes RetinaNet classification loss."""
     # Onehot encoding for classification labels.
     cls_targets_one_hot = tf.one_hot(cls_targets, self._num_classes)
-    bs, height, width, _, _ = cls_targets_one_hot.get_shape().as_list()
+    bs, hw, _ = cls_outputs.get_shape().as_list()
     cls_targets_one_hot = tf.reshape(cls_targets_one_hot,
-                                     [bs, height, width, -1])
+                                     [bs, hw, -1])
     loss = focal_loss(cls_outputs, cls_targets_one_hot,
                       self._focal_loss_alpha, self._focal_loss_gamma,
                       num_positives)
@@ -421,7 +421,7 @@ class RetinanetClassLoss(object):
         tf.ones_like(cls_targets, dtype=tf.float32),
     )
     ignore_loss = tf.expand_dims(ignore_loss, -1)
-    ignore_loss = tf.tile(ignore_loss, [1, 1, 1, 1, self._num_classes])
+    ignore_loss = tf.tile(ignore_loss, [1, 1, 1, self._num_classes])
     ignore_loss = tf.reshape(ignore_loss, tf.shape(input=loss))
     return tf.reduce_sum(input_tensor=ignore_loss * loss)
 

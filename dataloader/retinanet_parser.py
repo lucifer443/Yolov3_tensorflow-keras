@@ -277,7 +277,16 @@ class Parser(object):
         'num_positives': num_positives,
         'image_info': image_info,
     }
-    return image, labels
+    # return image, labels
+    num_anchors = input_anchor.anchors_per_location
+    mlvl_cls_targets = tf.concat([tf.reshape(cls_targets[lv], [-1, num_anchors]) \
+                                 for lv in range(self._min_level, self._max_level+1)], axis=0)
+    mlvl_box_targets = tf.concat([tf.reshape(box_targets[lv], [-1, num_anchors*4]) \
+                                 for lv in range(self._min_level, self._max_level + 1)], axis=0)
+    num_positives_expand = tf.ones_like(mlvl_box_targets[..., 0:1]) * num_positives
+    mlvl_cls_targets_wp = tf.concat([mlvl_cls_targets, tf.cast(num_positives_expand, dtype=tf.int32)], axis=-1)
+    mlvl_box_targets_wp = tf.concat([mlvl_box_targets, num_positives_expand], axis=-1)
+    return image, (mlvl_cls_targets_wp, mlvl_box_targets_wp)
 
   def _parse_eval_data(self, data):
     """Parses data for training and evaluation."""

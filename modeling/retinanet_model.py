@@ -64,7 +64,7 @@ class RetinanetModel(base_model.Model):
         [params.retinanet_parser.num_channels])
     self._input_layer = tf.keras.layers.Input(
         shape=input_shape, name='',
-        batch_size=params.train.batch_size,
+        batch_size=self._params.train.batch_size,
         dtype=tf.bfloat16 if self._use_bfloat16 else tf.float32)
 
   def build_outputs(self, inputs, mode):
@@ -86,11 +86,19 @@ class RetinanetModel(base_model.Model):
         cls_outputs[level] = tf.cast(cls_outputs[level], tf.float32)
         box_outputs[level] = tf.cast(box_outputs[level], tf.float32)
 
-    model_outputs = {
-        'cls_outputs': cls_outputs,
-        'box_outputs': box_outputs,
-    }
-    return model_outputs
+    min_level, max_level = min(cls_outputs.keys()), max(cls_outputs.keys())
+    n, _, _, c_cls = cls_outputs[min_level].get_shape().as_list()
+    _, _, _, c_box = box_outputs[min_level].get_shape().as_list()
+    mlvl_cls_outputs = tf.concat([tf.reshape(cls_outputs[lv], [n, -1, c_cls]) \
+                                 for lv in range(min_level, max_level+1)], axis=1)
+    mlvl_box_outputs = tf.concat([tf.reshape(box_outputs[lv], [n, -1, c_box]) \
+                                  for lv in range(min_level, max_level + 1)], axis=1)
+    return mlvl_cls_outputs, mlvl_box_outputs
+    # model_outputs = {
+    #     'cls_outputs': cls_outputs,
+    #     'box_outputs': box_outputs,
+    # }
+    # return model_outputs
 
   def build_loss_fn(self):
     if self._keras_model is None:
@@ -118,6 +126,26 @@ class RetinanetModel(base_model.Model):
       }
 
     return _total_loss_fn
+
+  def build_cls_loss_fn(self):
+    filter_fn = self.make_filter_trainable_variables_fn()
+    trainable_variables = filter_fn(self._keras_model.trainable_variables)
+
+    def _callback(labels, outputs):
+        num_positive = tf.reduce_max(labels[..., -1], axis=0)
+        cls_target = tf.cast(labels[..., 0:-1], dtype=tf.int32)
+        cls_loss = self._cls_loss_fn.class_loss(outputs, cls_target, tf.cast(num_positive, dtype=tf.float32))
+        l2_regularization_loss = self.weight_decay_loss(trainable_variables)
+        return cls_loss + l2_regularization_loss
+    return _callback
+
+  def build_box_loss_fn(self):
+
+    def _callback(labels, outputs):
+        num_positive = tf.reduce_max(labels[..., -1], axis=0)
+        box_loss = self._box_loss_fn.box_loss(outputs, labels[..., 0:-1], num_positive) * self._box_loss_weight
+        return box_loss
+    return _callback
 
   def build_model(self, params, mode=None):
     if self._keras_model is None:

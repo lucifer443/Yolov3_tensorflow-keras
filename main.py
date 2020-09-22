@@ -88,10 +88,18 @@ def build_model_fn(features, labels, mode, params):
 def estimator_run(params, train_input_fn):
     ssd_detector = tf.estimator.Estimator(
         model_fn=build_model_fn,
-        model_dir="/algo_proj/changming/model-zoo/tmp-dt",
+        model_dir=FLAGS.model_dir,
         params=params
     )
     ssd_detector.train(input_fn=train_input_fn, max_steps=10000)
+
+def run_executor(params, mode, train_input_fn, callbacks):
+    model_builder = model_factory.model_generator(params)
+    model = model_builder.build_model(params, mode=mode)
+    loss_fn = [model_builder.build_cls_loss_fn(), model_builder.build_box_loss_fn()]
+    model.compile(optimizer=model.optimizer,
+                  loss=loss_fn)
+    model.fit(train_input_fn(), epochs=10, steps_per_epoch=100, callbacks=callbacks)
 
 
 def run(callbacks=None):
@@ -139,12 +147,12 @@ def run(callbacks=None):
         mode=input_reader.ModeKeys.PREDICT_WITH_GT,
         batch_size=params.eval.batch_size,
         num_examples=params.eval.eval_samples)
-  estimator_run(params, train_input_fn)
-  # return run_executor(
-  #     params,
-  #     train_input_fn=train_input_fn,
-  #     eval_input_fn=eval_input_fn,
-  #     callbacks=callbacks)
+  # estimator_run(params, train_input_fn)
+  return run_executor(
+      params,
+      mode=ModeKeys.TRAIN,
+      train_input_fn=train_input_fn,
+      callbacks=callbacks)
 
 
 def main(argv):
